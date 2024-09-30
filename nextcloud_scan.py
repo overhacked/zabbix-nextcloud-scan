@@ -9,7 +9,6 @@ import sys
 class NCScan:
 
     API_BASE_URI = 'https://scan.nextcloud.com/api'
-
     def __init__(self, uri, requeueMinutes=1440):
         self.uri = uri
         self.uuid = None
