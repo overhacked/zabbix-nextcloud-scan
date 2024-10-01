@@ -7,9 +7,10 @@ import datetime
 import sys
 from zoneinfo import ZoneInfo
 
+
 class NCScan:
-    
-    API_BASE_URI = 'https://scan.nextcloud.com/api'
+
+    API_BASE_URI = "https://scan.nextcloud.com/api"
 
     def __init__(self, uri, requeueMinutes=1440):
         self.uri = uri
@@ -17,19 +18,21 @@ class NCScan:
         self.requeueDelta = datetime.timedelta(minutes=requeueMinutes)
 
     def _post(self, endpoint, **kwargs):
-        headers = {'X-CSRF': 'true'}
-        r = requests.post(self.API_BASE_URI + '/' + endpoint, data=kwargs, headers=headers)
+        headers = {"X-CSRF": "true"}
+        r = requests.post(
+            self.API_BASE_URI + "/" + endpoint, data=kwargs, headers=headers
+        )
         r.raise_for_status()
         return r
 
     def _get(self, endpoint, **kwargs):
-        r = requests.get(self.API_BASE_URI + '/' + endpoint, params=kwargs)
+        r = requests.get(self.API_BASE_URI + "/" + endpoint, params=kwargs)
         r.raise_for_status()
         return r
-        
+
     def requestUUID(self):
-        response = self._post('queue', url=self.uri)
-        self.uuid = response.json()['uuid']
+        response = self._post("queue", url=self.uri)
+        self.uuid = response.json()["uuid"]
         return self.uuid
 
     def getUUID(self):
@@ -39,74 +42,87 @@ class NCScan:
         return self.uuid
 
     def requestRequeue(self):
-        response = self._post('requeue', url=self.uri)
+        response = self._post("requeue", url=self.uri)
         return response
 
     def requestResult(self):
-        response = self._get('result/' + self.getUUID())
+        response = self._get("result/" + self.getUUID())
         responseJson = response.json()
         return responseJson
 
     def doScan(self):
         result = self.requestResult()
         lastScanTimestamp = datetime.datetime.strptime(
-            result['scannedAt']['date'],
-            '%Y-%m-%d %H:%M:%S.%f'
+            result["scannedAt"]["date"], "%Y-%m-%d %H:%M:%S.%f"
         )
-        tzinfo = ZoneInfo(result['scannedAt']['timezone'])
+        tzinfo = ZoneInfo(result["scannedAt"]["timezone"])
         localized_lastScanTimestamp = lastScanTimestamp.replace(tzinfo=tzinfo)
-        utc_lastScanTimestamp = localized_lastScanTimestamp.astimezone(datetime.timezone.utc)
+        utc_lastScanTimestamp = localized_lastScanTimestamp.astimezone(
+            datetime.timezone.utc
+        )
         scanDelta = datetime.datetime.now(datetime.timezone.utc) - utc_lastScanTimestamp
-        result['secondsSinceScan'] = int(scanDelta.total_seconds())
+        result["secondsSinceScan"] = int(scanDelta.total_seconds())
         if scanDelta >= self.requeueDelta:
             self.requestRequeue()
-            result['requeueRequested'] = True
+            result["requeueRequested"] = True
 
         return result
 
-    def getResultJson(self,indent=0):
+    def getResultJson(self, indent=0):
         result = self.doScan()
 
-        result['vulnerabilitiesCount'] = len(result['vulnerabilities'])
-        result['hardeningsMissing'] = sum(1 for isHardened in result['hardenings'].values() if isHardened is False)
-        result['headersMissing'] = sum(1 for headerPresent in result['setup']['headers'].values() if headerPresent is False)
+        result["vulnerabilitiesCount"] = len(result["vulnerabilities"])
+        result["hardeningsMissing"] = sum(
+            1 for isHardened in result["hardenings"].values() if isHardened is False
+        )
+        result["headersMissing"] = sum(
+            1
+            for headerPresent in result["setup"]["headers"].values()
+            if headerPresent is False
+        )
 
-        return json.dumps(result, indent=indent, separators=(',', ':'))
+        return json.dumps(result, indent=indent, separators=(",", ":"))
+
 
 def main():
     parser = argparse.ArgumentParser(
-                                    description='Run a Nextcloud security scan at scan.nextcloud.org',
-                                    )
-    parser.add_argument('hostname',
-                        help='Publicly-available hostname of the Nextcloud instance to scan'
-                       )
-    parser.add_argument('-u', '--uri',
-                        required=False,
-                        default='/',
-                        help='Base URI of the Nextcloud instance (default: "%(default)s")'
-                       )
-    parser.add_argument('-m', '--minutes',
-                        required=False,
-                        default=1440,
-                        type=int,
-                        help='Number of minutes after which to initiate a re-scan (default: %(default)s)'
-                       )
-    parser.add_argument('-D', '--debug',
-                        required=False,
-                        default=False,
-                        action='store_true'
-                       )
-    parser.add_argument('-v', '--verbose',
-                        required=False,
-                        default=False,
-                        action='store_true',
-                        help='Print formatted, human-readable JSON results'
-                       )
+        description="Run a Nextcloud security scan at scan.nextcloud.org",
+    )
+    parser.add_argument(
+        "hostname", help="Publicly-available hostname of the Nextcloud instance to scan"
+    )
+    parser.add_argument(
+        "-u",
+        "--uri",
+        required=False,
+        default="/",
+        help='Base URI of the Nextcloud instance (default: "%(default)s")',
+    )
+    parser.add_argument(
+        "-m",
+        "--minutes",
+        required=False,
+        default=1440,
+        type=int,
+        help="Number of minutes after which to initiate a re-scan (default: %(default)s)",
+    )
+    parser.add_argument(
+        "-D", "--debug", required=False, default=False, action="store_true"
+    )
+    parser.add_argument(
+        "-v",
+        "--verbose",
+        required=False,
+        default=False,
+        action="store_true",
+        help="Print formatted, human-readable JSON results",
+    )
     args = parser.parse_args()
 
     if args.debug:
         import logging
         import http.client as http_client  # Updated for Python 3
+
         http_client.HTTPConnection.debuglevel = 1
 
         # You must initialize logging, otherwise you'll not see debug output.
@@ -131,6 +147,7 @@ def main():
         sys.exit(1)
 
     sys.exit(0)
+
 
 if __name__ == "__main__":
     main()
