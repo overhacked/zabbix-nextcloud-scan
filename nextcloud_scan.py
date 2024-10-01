@@ -8,7 +8,7 @@ import sys
 from zoneinfo import ZoneInfo
 
 class NCScan:
-
+    
     API_BASE_URI = 'https://scan.nextcloud.com/api'
 
     def __init__(self, uri, requeueMinutes=1440):
@@ -26,7 +26,7 @@ class NCScan:
         r = requests.get(self.API_BASE_URI + '/' + endpoint, params=kwargs)
         r.raise_for_status()
         return r
-
+        
     def requestUUID(self):
         response = self._post('queue', url=self.uri)
         self.uuid = response.json()['uuid']
@@ -109,7 +109,7 @@ def main():
         import http.client as http_client  # Updated for Python 3
         http_client.HTTPConnection.debuglevel = 1
 
-        # Initialize logging
+        # You must initialize logging, otherwise you'll not see debug output.
         logging.basicConfig()
         logging.getLogger().setLevel(logging.DEBUG)
         requests_log = logging.getLogger("requests.packages.urllib3")
