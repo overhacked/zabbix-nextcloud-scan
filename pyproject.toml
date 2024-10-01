@@ -1,0 +1,18 @@
+[tool.poetry]
+name = "zabbix-nextcloud-scan"
+version = "0.2.0"
+description = "Nextcloud Security Scan monitoring for Zabbix 3.4+"
+authors = ["Ross Williams <ross@ross-williams.net>"]
+license = "BSD-3-Clause"
+readme = "README.md"
+package-mode = false
+
+[tool.poetry.dependencies]
+python = "^3.9"
+
+[tool.poetry.group.dev.dependencies]
+pre-commit = "^3.8.0"
+
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"
