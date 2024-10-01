@@ -4,7 +4,7 @@ Nextcloud Security Scan monitoring for Zabbix 3.4+
 ## Requirements
 
 * Zabbix 3.4+
-* Python 2 installed on your Zabbix server
+* Python 3.9+ installed on your Zabbix server
 
 ## Installation
 
