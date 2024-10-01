@@ -1,10 +1,11 @@
-#!/usr/bin/python
+#!/usr/bin/python3
 
 import argparse
 import requests
 import json
 import datetime
 import sys
+from zoneinfo import ZoneInfo
 
 class NCScan:
     
@@ -13,7 +14,7 @@ class NCScan:
     def __init__(self, uri, requeueMinutes=1440):
         self.uri = uri
         self.uuid = None
-        self.requeueDelta=datetime.timedelta(minutes=requeueMinutes)
+        self.requeueDelta = datetime.timedelta(minutes=requeueMinutes)
 
     def _post(self, endpoint, **kwargs):
         headers = {'X-CSRF': 'true'}
@@ -49,12 +50,13 @@ class NCScan:
     def doScan(self):
         result = self.requestResult()
         lastScanTimestamp = datetime.datetime.strptime(
-            result['scannedAt']['date']
-                + ' '
-                + result['scannedAt']['timezone'],
-            '%Y-%m-%d %H:%M:%S.%f %Z'
+            result['scannedAt']['date'],
+            '%Y-%m-%d %H:%M:%S.%f'
         )
-        scanDelta = datetime.datetime.utcnow() - lastScanTimestamp
+        tzinfo = ZoneInfo(result['scannedAt']['timezone'])
+        localized_lastScanTimestamp = lastScanTimestamp.replace(tzinfo=tzinfo)
+        utc_lastScanTimestamp = localized_lastScanTimestamp.astimezone(datetime.timezone.utc)
+        scanDelta = datetime.datetime.now(datetime.timezone.utc) - utc_lastScanTimestamp
         result['secondsSinceScan'] = int(scanDelta.total_seconds())
         if scanDelta >= self.requeueDelta:
             self.requestRequeue()
@@ -62,14 +64,14 @@ class NCScan:
 
         return result
 
-    def getResultJson(self):
+    def getResultJson(self,indent=0):
         result = self.doScan()
 
         result['vulnerabilitiesCount'] = len(result['vulnerabilities'])
-        result['hardeningsMissing'] = sum( 1 for isHardened in result['hardenings'].values() if isHardened == False )
-        result['headersMissing'] = sum( 1 for headerPresent in result['setup']['headers'].values() if headerPresent == False )
+        result['hardeningsMissing'] = sum(1 for isHardened in result['hardenings'].values() if isHardened is False)
+        result['headersMissing'] = sum(1 for headerPresent in result['setup']['headers'].values() if headerPresent is False)
 
-        return json.dumps(result, separators=(',',':'))
+        return json.dumps(result, indent=indent, separators=(',', ':'))
 
 def main():
     parser = argparse.ArgumentParser(
@@ -94,11 +96,17 @@ def main():
                         default=False,
                         action='store_true'
                        )
+    parser.add_argument('-v', '--verbose',
+                        required=False,
+                        default=False,
+                        action='store_true',
+                        help='Print formatted, human-readable JSON results'
+                       )
     args = parser.parse_args()
 
     if args.debug:
         import logging
-        import httplib as http_client
+        import http.client as http_client  # Updated for Python 3
         http_client.HTTPConnection.debuglevel = 1
 
         # You must initialize logging, otherwise you'll not see debug output.
@@ -111,10 +119,15 @@ def main():
     scanner = NCScan(args.hostname + args.uri, requeueMinutes=args.minutes)
 
     try:
-        print(scanner.getResultJson()) 
+        if args.verbose:
+            # Formatted, human-readable JSON output
+            print(scanner.getResultJson(indent=4))
+        else:
+            # Compact JSON output
+            print(scanner.getResultJson())
     except requests.exceptions.RequestException:
         (name, value, traceback) = sys.exc_info()
-        print("Error: ", name, " (", value, ")")
+        print(f"Error: {name} ({value})")
         sys.exit(1)
 
     sys.exit(0)
